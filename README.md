@@ -2,13 +2,16 @@
 
 Enter a VIN, get a short vehicle report: make, model, year, mileage history (with odometer-rollback detection) and accident history.
 
-Next.js 16 app. One project serves both the frontend and the API.
+A single Next.js 16 app serves both the frontend and the API.
 
 ## Run
+
+Requires Node 22.12+ or 24.
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
+npm test         # unit and API tests (Vitest)
 ```
 
 Production: `npm run build && npm start`.
@@ -46,20 +49,50 @@ curl localhost:3000/vehicles/1FTFW1ET9DFC10312
 
 Valid but unknown, for the 404 state: `2HGCM82603A004352`.
 
-## Layout
+The home page has one-click buttons for a clean vehicle, the two rollback vehicles and the not-found VIN.
+
+## Structure
+
+Business logic has no framework code in it. The route and the UI only call into it.
 
 ```
 src/
-  lib/vin.ts                  VIN validation and check digit
-  lib/report.ts               lookup and rollback detection
-  data/vehicles.json          sample data
-  app/vehicles/[vin]/route.ts the API
-  app/page.tsx                home page
-  app/vin-search.tsx          form and loading, slow, invalid, not-found and error states
-  app/report-view.tsx         the report
+  lib/
+    vin.ts                  VIN validation and check digit
+    report.ts               lookup and rollback detection
+    format.ts               date and mileage formatting
+  data/vehicles.json        sample data
+  app/
+    vehicles/[vin]/route.ts the API: validate, look up, map to 400/404/200
+    page.tsx                home page
+  hooks/use-vin-lookup.ts   request state: loading, slow, invalid, not found, error, done
+  components/
+    vin-search.tsx          form, renders each lookup state
+    report-view.tsx         the report, built from the components below
+    report-skeleton.tsx     loading placeholder in the shape of the report
+    mileage-history.tsx     odometer table with the change between readings and rollback rows marked
+    accident-history.tsx    accident list
+    alert.tsx               shared alert (error, not found, rollback warning)
 ```
 
-## Notes
+Tests sit next to the code they cover: `lib/vin.test.ts`, `lib/report.test.ts` and `app/vehicles/[vin]/route.test.ts`.
 
-- Requests show a "taking longer than usual" message after 3 s and time out at 10 s, with a Retry button. Use DevTools network throttling or "Offline" to see these states.
-- The check digit is only mandatory for North American VINs. If real data includes other VINs, the check-digit failure should become a warning rather than a 400.
+## States
+
+| State | Behaviour |
+|---|---|
+| Invalid VIN | Checked before any request is sent. The specific reason appears under the input. |
+| Loading | The button is disabled and "Looking up vehicle…" is shown. |
+| Slow | After 3 s the message changes to "taking longer than usual". |
+| Failed | Timeout (10 s), network error or 5xx: an error with a Retry button. |
+| Not found | "No record found" with the VIN. |
+
+To see the slow and failed states, use DevTools network throttling or "Offline".
+
+## Trade-offs
+
+- **The data is a JSON file read at build time.** That's enough for 5 records. Real data would need a database, and `getReport` is the only function that would change.
+- **The check digit is enforced.** It's only mandatory for North American VINs, so a European VIN with a "wrong" check digit would get a 400. With international data, that check should become a warning on the report rather than a rejection.
+- **Rollback detection compares readings only.** It doesn't account for odometer replacements or unit mix-ups (km vs mi), and it treats all readings as kilometres. A false positive is possible if the data contains a legitimate odometer swap.
+- **The report isn't linkable.** It appears on the same page, so there's no URL to share a result. A `/report/[vin]` page would add that.
+- **No component or end-to-end tests.** Tests cover validation, rollback detection and the API's status codes. I tested the UI states by hand in the browser.
