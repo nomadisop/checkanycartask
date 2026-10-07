@@ -20,6 +20,7 @@ export type VinResult = { ok: true; vin: string } | { ok: false; reason: string 
 
 export function validateVin(input: string): VinResult {
   const vin = input.trim().toUpperCase();
+  if (!vin) return { ok: false, reason: "Please enter a VIN." };
   if (vin.length !== 17) return { ok: false, reason: "A VIN must be exactly 17 characters." };
   if (/[IOQ]/.test(vin)) return { ok: false, reason: "A VIN can't contain the letters I, O or Q." };
   if (!/^[A-Z0-9]+$/.test(vin)) return { ok: false, reason: "A VIN can only contain letters and numbers." };
