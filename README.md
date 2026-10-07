@@ -4,6 +4,8 @@ Enter a VIN, get a short vehicle report: make, model, year, mileage history (wit
 
 A single Next.js 16 app serves both the frontend and the API.
 
+**Live demo:** https://checkanycartask.vercel.app (try the API at https://checkanycartask.vercel.app/vehicles/1FTFW1ET9DFC10312)
+
 ## Run
 
 Requires Node 22.12+ or 24.
